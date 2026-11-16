@@ -9,6 +9,7 @@ Builds/
 .vsconfig
 *.csproj
 *.sln
+*.slnx
 /.utmp
 *.zip
 *.apk

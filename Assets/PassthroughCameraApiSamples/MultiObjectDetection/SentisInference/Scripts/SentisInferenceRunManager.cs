@@ -27,6 +27,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
 
         [Header("UI display references")]
         [SerializeField] private SentisInferenceUiManager m_uiInference;
+        [SerializeField] private WarhammerAssistant.UnitCardOverlay m_unitCard;
 
         [Header("[Editor Only] Convert to Sentis")]
         public ModelAsset OnnxModel;
@@ -40,13 +41,17 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         {
             var model = ModelLoader.Load(m_sentisModel);
             var inputShape = model.inputs[0].shape;
-            m_inputSize = new Vector2Int(inputShape.Get(2), inputShape.Get(3));
+            m_inputSize = new Vector2Int(inputShape.Get(3), inputShape.Get(2));
             m_engine = new Worker(model, m_backend);
         }
 
         private IEnumerator Start()
         {
             m_uiInference.SetLabels(m_labelsAsset);
+            if (m_unitCard != null)
+            {
+                m_unitCard.SetLabels(m_labelsAsset);
+            }
 
             while (true)
             {
@@ -108,10 +113,14 @@ namespace PassthroughCameraSamples.MultiObjectDetection
 
             // Update Capture data
             Texture targetTexture = m_cameraAccess.GetTexture();
+            if (targetTexture == null)
+            {
+                yield break;
+            }
 
             // Convert the texture to a Tensor and schedule the inference
             var textureTransform = new TextureTransform().SetDimensions(targetTexture.width, targetTexture.height, 3);
-            using var input = new Tensor<float>(new TensorShape(1, 3, m_inputSize.x, m_inputSize.y));
+            using var input = new Tensor<float>(new TensorShape(1, 3, m_inputSize.y, m_inputSize.x));
             TextureConverter.ToTensor(targetTexture, input, textureTransform);
 
             // Schedule all model layers
@@ -154,6 +163,12 @@ namespace PassthroughCameraSamples.MultiObjectDetection
             }
 
             NonMaxSuppression(m_detections, boxes, classIDs, scores, m_iouThreshold, m_scoreThreshold);
+
+            // The unit card is head-relative and does not use the sample's spatial anchor.
+            if (m_cameraAccess.IsPlaying && m_unitCard != null)
+            {
+                m_unitCard.ShowDetections(m_detections, m_inputSize);
+            }
 
             // Checking if spatial anchor is tracked ensures bounding boxes are placed at correct world space positIons.
             if (!m_cameraAccess.IsPlaying || m_detectionManager.m_spatialAnchor == null || !m_detectionManager.m_spatialAnchor.IsTracked)

@@ -87,6 +87,7 @@ GameObject:
   - component: {fileID: 7913708705614608778}
   - component: {fileID: 2681575481727882275}
   - component: {fileID: 2184060436030677583}
+  - component: {fileID: 5842398228815899650}
   m_Layer: 0
   m_Name: SentisInferenceManagerPrefab
   m_TagString: Untagged
@@ -131,7 +132,22 @@ MonoBehaviour:
   m_iouThreshold: 0.4
   m_scoreThreshold: 0.3
   m_uiInference: {fileID: 2184060436030677583}
+  m_unitCard: {fileID: 5842398228815899650}
   OnnxModel: {fileID: 5022602860645237092, guid: e61826a46beb24bb380fd628c56eacaa, type: 3}
+--- !u!114 &5842398228815899650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5228241647023865434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28b03921eadf4d9c8cb22fa52648d7bd, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  m_unitCatalog: {fileID: 4900000, guid: b98a1591ee1247f294bade0c67d27861, type: 3}
+  m_bottleDemo: 1
 --- !u!114 &2184060436030677583
 MonoBehaviour:
   m_ObjectHideFlags: 0

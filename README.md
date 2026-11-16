@@ -1,5 +1,23 @@
 # Unity-PassthroughCameraAPISamples
 
+## Quest 3 워해머 정보 카드 프로토타입
+
+패스스루 영상의 중앙에 가까운 탐지 결과를 골라 유닛 이름, 진영, 설명을 시야 오른쪽 아래에 표시합니다. 대상이 시야를 벗어나면 카드가 사라집니다. 영상 처리는 Quest에서 실행됩니다.
+
+### 헤드셋에서 데모 실행
+
+1. Unity Hub에서 **Unity 6.3 (6000.3.18f1)**로 이 프로젝트를 엽니다. Quest용 APK를 빌드하려면 이 에디터에 **Android Build Support**, **Android SDK & NDK Tools**, **OpenJDK**를 설치합니다.
+2. **File > Build Profiles**에서 Android로 전환하고 **Meta > Tools > Project Setup Tool**에서 Quest 설정을 확인합니다.
+3. 개발자 모드와 USB 디버깅을 켠 Quest 3를 연결하고 **Build And Run**을 실행합니다.
+4. 샘플 메뉴에서 **MultiObjectDetection**을 열고 카메라 및 공간 권한을 허용합니다. 오른쪽 컨트롤러의 **A** 버튼을 눌러 탐지를 시작한 뒤 병을 화면 중앙에 둡니다. `BOTTLE DEMO`가 붙은 Intercessor 카드로 표시 흐름을 확인할 수 있습니다.
+
+### 실제 미니어처 모델 연결
+
+- [유닛 카탈로그](Assets/WarhammerAssistant/Units.json)에 인식할 유닛을 추가합니다. `label`은 모델 레이블 파일의 해당 클래스 이름과 일치해야 합니다.
+- `MultiObjectDetection` 씬의 `SentisInferenceManagerPrefab`에서 모델과 레이블 파일을 교체하고 `Unit Card Overlay`의 **Bottle Demo**를 해제합니다.
+- 모델 입력은 고정 크기 `[1, 3, H, W]` RGB 텐서입니다. 출력은 순서대로 박스 `float[N, 4]`(입력 픽셀 기준 `xMin, yMin, xMax, yMax`), 클래스 ID `int[N]`, 점수 `float[N]`입니다. 레이블 파일은 0번 클래스부터 한 줄씩 적습니다.
+- 첫 모델은 식별하려는 미니어처 몇 종의 사진으로 시작합니다. 미니어처별로 여러 각도, 도색, 조명, 거리에서 촬영하고, 검증용으로는 다른 촬영 세션의 사진을 남겨 둡니다.
+
 ## Project Overview
 
 The **Unity-PassthroughCameraAPISamples** project helps Unity developers access Quest camera data using the **PassthroughCameraAccess** component from the Mixed Reality Utility Kit (MRUK). This component provides direct access to headset cameras with enhanced functionality including:

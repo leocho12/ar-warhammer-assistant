@@ -1,0 +1,10 @@
+{
+  "units": [
+    {
+      "label": "intercessor",
+      "name": "Intercessor",
+      "faction": "Space Marines",
+      "description": "Primaris infantry equipped with a bolt rifle."
+    }
+  ]
+}
