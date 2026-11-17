@@ -1,0 +1,51 @@
+{
+  "datasheets": [
+    {
+      "label": "space_marines__ancient_in_terminator_armour",
+      "version": "Reference profile",
+      "stats": {
+        "movement": "5\"",
+        "toughness": "6",
+        "save": "2+",
+        "wounds": "5",
+        "leadership": "6+",
+        "objectiveControl": "2",
+        "invulnerableSave": "4+"
+      },
+      "weapons": [
+        {
+          "name": "Storm Bolter",
+          "range": "24\"",
+          "attacks": "2",
+          "skill": "3+",
+          "strength": "5",
+          "armourPenetration": "-1",
+          "damage": "1",
+          "keywords": "Rapid Fire 2"
+        },
+        {
+          "name": "Master-crafted Power Weapon",
+          "range": "Melee",
+          "attacks": "5",
+          "skill": "3+",
+          "strength": "5",
+          "armourPenetration": "-2",
+          "damage": "2"
+        }
+      ],
+      "abilities": [
+        { "name": "Deep Strike" },
+        { "name": "Support" },
+        { "name": "Combat Doctrines" },
+        {
+          "name": "Raise the Banner",
+          "description": "Secure the objective this unit controls at the end of your Movement phase."
+        },
+        {
+          "name": "Never Shall the Standard Fall",
+          "description": "While this unit is in range of an objective, attacks with Strength above its Toughness subtract 1 from the wound roll."
+        }
+      ]
+    }
+  ]
+}

@@ -2,21 +2,26 @@
 
 ## Quest 3 워해머 정보 카드 프로토타입
 
-패스스루 영상의 중앙에 가까운 탐지 결과를 골라 유닛 이름, 진영, 설명을 시야 오른쪽 아래에 표시합니다. 대상이 시야를 벗어나면 카드가 사라집니다. 영상 처리는 Quest에서 실행됩니다.
+Quest의 패스스루 카메라로 헤드셋 방향에 있는 유닛을 탐지합니다. 선택한 미니어처에 청록색 표시를 띄우고, 오른쪽 데이터시트에 이동 거리, 터프니스, 세이브, 무기별 피해량과 어빌리티를 표시합니다. 긴 카드는 오른쪽 컨트롤러 스틱으로 스크롤합니다. 시선을 옮기면 카드가 사라집니다. 영상은 기기에서 처리합니다.
 
 ### 헤드셋에서 데모 실행
 
 1. Unity Hub에서 **Unity 6.3 (6000.3.18f1)**로 이 프로젝트를 엽니다. Quest용 APK를 빌드하려면 이 에디터에 **Android Build Support**, **Android SDK & NDK Tools**, **OpenJDK**를 설치합니다.
 2. **File > Build Profiles**에서 Android로 전환하고 **Meta > Tools > Project Setup Tool**에서 Quest 설정을 확인합니다.
 3. 개발자 모드와 USB 디버깅을 켠 Quest 3를 연결하고 **Build And Run**을 실행합니다.
-4. 샘플 메뉴에서 **MultiObjectDetection**을 열고 카메라 및 공간 권한을 허용합니다. 오른쪽 컨트롤러의 **A** 버튼을 눌러 탐지를 시작한 뒤 병을 화면 중앙에 둡니다. `BOTTLE DEMO`가 붙은 Intercessor 카드로 표시 흐름을 확인할 수 있습니다.
+4. 시작 메뉴에서 **Warhammer Assistant**를 열고 카메라 권한을 허용합니다. 오른쪽 컨트롤러의 **A** 버튼을 누른 뒤 병을 바라보면 `BOTTLE DEMO`가 붙은 참고 데이터시트를 확인할 수 있습니다.
+
+### PC에서 유닛 모델 학습
+
+[Miniature Trainer](training/README.md)에서 사진 위에 유닛별 박스를 그리고 객체 탐지 모델을 학습할 수 있습니다. `training/start.cmd`를 실행하면 라벨링, 학습 진행률, 학습 중단·재개, 사진 탐지 시험, Unity용 ONNX 내보내기를 사용할 수 있습니다. NVIDIA GPU 설치 방법과 데이터 준비 절차는 도구의 사용 설명서에 있습니다.
 
 ### 실제 미니어처 모델 연결
 
-- [유닛 카탈로그](Assets/WarhammerAssistant/Units.json)에 인식할 유닛을 추가합니다. `label`은 모델 레이블 파일의 해당 클래스 이름과 일치해야 합니다.
-- `MultiObjectDetection` 씬의 `SentisInferenceManagerPrefab`에서 모델과 레이블 파일을 교체하고 `Unit Card Overlay`의 **Bottle Demo**를 해제합니다.
-- 모델 입력은 고정 크기 `[1, 3, H, W]` RGB 텐서입니다. 출력은 순서대로 박스 `float[N, 4]`(입력 픽셀 기준 `xMin, yMin, xMax, yMax`), 클래스 ID `int[N]`, 점수 `float[N]`입니다. 레이블 파일은 0번 클래스부터 한 줄씩 적습니다.
-- 첫 모델은 식별하려는 미니어처 몇 종의 사진으로 시작합니다. 미니어처별로 여러 각도, 도색, 조명, 거리에서 촬영하고, 검증용으로는 다른 촬영 세션의 사진을 남겨 둡니다.
+1. 학습 도구에서 **Unity ONNX 내보내기**를 실행합니다.
+2. Unity에서 **Warhammer Assistant > Import Training Export…**를 누르고 `miniature_detector.onnx`, `labels.txt`, `manifest.json`이 들어 있는 폴더를 선택합니다. 가져오기 도구가 클래스 순서, 카탈로그 식별자와 모델 입출력을 검사한 뒤 씬이 사용하는 탐지 프리팹에 모델과 레이블을 연결하고 병 데모를 해제합니다.
+3. 인식한 유닛의 데이터시트를 [Datasheets.json](Assets/WarhammerAssistant/Datasheets.json)에 추가합니다. `label`은 [Units.json](Assets/WarhammerAssistant/Units.json)에서 내보낸 클래스와 같아야 합니다. 현재 상세 데이터는 첨부 시안에 기반한 참고 프로필 1종이 들어 있습니다. 상세 데이터가 없는 유닛에서는 이름과 진영을 표시합니다.
+
+Unity는 RGB 영상을 114 회색으로 패딩한 비율 유지 리사이즈로 고정 크기 `[1, 3, H, W]` 입력을 만들고, 탐지 좌표를 원본 카메라 영상 위치로 되돌립니다. 모델 출력은 `boxes`(float32 `[N,4]`), `class_ids`(int32 `[N]`), `scores`(float32 `[N]`)입니다.
 
 ## Project Overview
 

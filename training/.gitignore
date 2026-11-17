@@ -1,0 +1,14 @@
+.venv/
+.local/
+.cache/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+projects/
+data/
+runs/
+cache/
+*.pt
+*.onnx
+*.cache
+*.log

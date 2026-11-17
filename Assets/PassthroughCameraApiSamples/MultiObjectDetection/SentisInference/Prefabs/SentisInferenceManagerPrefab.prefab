@@ -129,6 +129,7 @@ MonoBehaviour:
   m_backend: 512
   m_sentisModel: {fileID: 5022602860645237092, guid: 69ab50aef18ae412cac4b305492d527c, type: 3}
   m_labelsAsset: {fileID: 4900000, guid: c01c64149c7930b45a76559caabd5c78, type: 3}
+  m_letterboxShader: {fileID: 4800000, guid: d45dbcfc2b54286b26eba025bfbd1c9a, type: 3}
   m_iouThreshold: 0.4
   m_scoreThreshold: 0.3
   m_uiInference: {fileID: 2184060436030677583}
@@ -147,6 +148,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   m_unitCatalog: {fileID: 4900000, guid: b98a1591ee1247f294bade0c67d27861, type: 3}
+  m_datasheets: {fileID: 4900000, guid: a9b58080b4fa4f0abb9f3e572dce92da, type: 3}
   m_bottleDemo: 1
 --- !u!114 &2184060436030677583
 MonoBehaviour:

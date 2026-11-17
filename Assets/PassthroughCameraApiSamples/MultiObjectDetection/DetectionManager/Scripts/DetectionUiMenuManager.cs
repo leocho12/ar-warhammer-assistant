@@ -21,6 +21,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
 
         public UnityEvent<bool> OnPause;
 
+        internal bool AssistantMode { get; set; }
         private bool m_initialMenu;
 
         // start menu
@@ -39,7 +40,8 @@ namespace PassthroughCameraSamples.MultiObjectDetection
 
             // Wait for permissions
             OnNoPermissionMenu();
-            while (!OVRPermissionsRequester.IsPermissionGranted(OVRPermissionsRequester.Permission.Scene) || !OVRPermissionsRequester.IsPermissionGranted(OVRPermissionsRequester.Permission.PassthroughCameraAccess))
+            while (!OVRPermissionsRequester.IsPermissionGranted(OVRPermissionsRequester.Permission.PassthroughCameraAccess)
+                || (!AssistantMode && !OVRPermissionsRequester.IsPermissionGranted(OVRPermissionsRequester.Permission.Scene)))
             {
                 yield return null;
             }

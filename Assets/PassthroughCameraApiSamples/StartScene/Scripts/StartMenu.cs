@@ -54,7 +54,9 @@ namespace PassthroughCameraSamples.StartScene
                 _ = uiBuilder.AddLabel("Passthrough Sample Scenes", DebugUIBuilder.DEBUG_PANE_LEFT);
                 foreach (var scene in passthroughScenes)
                 {
-                    _ = uiBuilder.AddButton(Path.GetFileNameWithoutExtension(scene.Item2), () => LoadScene(scene.Item1), -1, DebugUIBuilder.DEBUG_PANE_LEFT);
+                    var sceneName = Path.GetFileNameWithoutExtension(scene.Item2);
+                    var buttonLabel = sceneName == "MultiObjectDetection" ? "Warhammer Assistant" : sceneName;
+                    _ = uiBuilder.AddButton(buttonLabel, () => LoadScene(scene.Item1), -1, DebugUIBuilder.DEBUG_PANE_LEFT);
                 }
             }
 

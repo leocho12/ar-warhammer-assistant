@@ -27,7 +27,7 @@ namespace PassthroughCameraSamples.MultiObjectDetection
         internal OVRSpatialAnchor m_spatialAnchor;
         private bool m_isHeadsetTracking;
 
-        private void Awake()
+        private void Start()
         {
             StartCoroutine(UpdateSpatialAnchor());
             OVRManager.TrackingLost += OnTrackingLost;

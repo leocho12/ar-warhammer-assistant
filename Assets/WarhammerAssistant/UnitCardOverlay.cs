@@ -1,83 +1,108 @@
 using System;
 using System.Collections.Generic;
+using Meta.XR;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace WarhammerAssistant
 {
     public sealed class UnitCardOverlay : MonoBehaviour
     {
         [SerializeField] private TextAsset m_unitCatalog;
+        [SerializeField] private TextAsset m_datasheets;
+        [SerializeField] private Font m_font;
         [SerializeField] private bool m_bottleDemo = true;
 
-        private const float CenterTolerance = 0.10f;
-        private const float CardHoldSeconds = 0.75f;
+        private const string DemoLabel = "space_marines__ancient_in_terminator_armour";
+        private const float CenterTolerance = 0.06f;
+        private const float CardHoldSeconds = 0.7f;
+        private const float EstimatedTargetDistance = 0.85f;
 
-        [Serializable]
-        private sealed class Catalog
-        {
-            public Unit[] units;
-        }
-
-        [Serializable]
-        private sealed class Unit
-        {
-            public string label;
-            public string name;
-            public string faction;
-            public string description;
-        }
-
-        private readonly Dictionary<string, Unit> m_units = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, UnitEntry> m_units = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, UnitDatasheet> m_profiles = new(StringComparer.OrdinalIgnoreCase);
+        private readonly RectTransform[] m_brackets = new RectTransform[8];
         private string[] m_labels = Array.Empty<string>();
-        private GameObject m_card;
-        private Text m_title;
-        private Text m_faction;
-        private Text m_description;
-        private Unit m_currentUnit;
+        private OVRCameraRig m_rig;
+        private RectTransform m_canvas;
+        private DatasheetPanel m_panel;
+        private RectTransform m_connector;
+        private UnitEntry m_currentUnit;
         private float m_hideAt;
 
         private void Awake()
         {
-            if (m_unitCatalog == null)
+            if (m_unitCatalog != null)
             {
-                Debug.LogError("Assign a unit catalog to Unit Card Overlay.", this);
-                return;
-            }
-
-            var catalog = JsonUtility.FromJson<Catalog>(m_unitCatalog.text);
-            if (catalog?.units == null)
-            {
-                Debug.LogError("The unit catalog must contain a units array.", this);
-                return;
-            }
-
-            foreach (var unit in catalog.units)
-            {
-                if (unit != null && !string.IsNullOrWhiteSpace(unit.label)
-                    && !m_units.TryAdd(unit.label.Trim(), unit))
+                var catalog = JsonUtility.FromJson<UnitCatalog>(m_unitCatalog.text);
+                foreach (var unit in catalog?.units ?? Array.Empty<UnitEntry>())
                 {
-                    Debug.LogWarning($"Duplicate unit label: {unit.label}", this);
+                    if (unit != null && !string.IsNullOrWhiteSpace(unit.label))
+                    {
+                        m_units.TryAdd(unit.label.Trim(), unit);
+                    }
+                }
+            }
+            if (m_datasheets != null)
+            {
+                var catalog = JsonUtility.FromJson<DatasheetCatalog>(m_datasheets.text);
+                foreach (var sheet in catalog?.datasheets ?? Array.Empty<UnitDatasheet>())
+                {
+                    if (sheet != null && !string.IsNullOrWhiteSpace(sheet.label))
+                    {
+                        m_profiles.TryAdd(sheet.label.Trim(), sheet);
+                    }
                 }
             }
         }
 
-        internal void SetLabels(TextAsset labelsAsset)
+        internal void SetLabels(string[] labels) => m_labels = labels;
+
+        internal Vector2 GetAim(PassthroughCameraAccess camera, Pose cameraPose)
         {
-            m_labels = labelsAsset.text.Split('\n');
-            for (var index = 0; index < m_labels.Length; index++)
+            var head = FindHead();
+            if (head == null)
             {
-                m_labels[index] = m_labels[index].Trim();
+                return new Vector2(0.5f, 0.5f);
             }
+
+            var gazePoint = head.position + head.forward * EstimatedTargetDistance;
+            var viewport = camera.WorldToViewportPoint(gazePoint, cameraPose);
+            return new Vector2(viewport.x, 1f - viewport.y);
         }
 
-        internal void ShowDetections(List<(int classId, Vector4 boundingBox)> detections, Vector2 inputSize)
+        // Bounds and aim are normalized camera coordinates with a top-left origin.
+        internal void ShowDetections(IReadOnlyList<(int classId, Vector4 boundingBox)> detections, Vector2 cameraSize,
+            Vector2 captureAim, PassthroughCameraAccess camera, Pose cameraPose)
         {
-            Unit selected = null;
+            var currentAim = GetAim(camera, cameraPose);
+            if (!TrySelect(detections, cameraSize, captureAim, currentAim, out var unit, out var bounds)
+                || !EnsureCanvas())
+            {
+                SetMarkerVisible(false);
+                return;
+            }
+
+            if (unit != m_currentUnit)
+            {
+                m_profiles.TryGetValue(unit.label, out var sheet);
+                m_panel.Show(unit, sheet, m_bottleDemo);
+                m_currentUnit = unit;
+            }
+
+            m_hideAt = Time.unscaledTime + CardHoldSeconds;
+            m_canvas.gameObject.SetActive(true);
+            DrawMarker(bounds, camera, cameraPose);
+        }
+
+        internal bool TrySelect(IReadOnlyList<(int classId, Vector4 boundingBox)> detections, Vector2 cameraSize,
+            Vector2 captureAim, Vector2 currentAim, out UnitEntry selected, out Rect selectedBounds)
+        {
+            selected = null;
+            selectedBounds = default;
             var closest = float.PositiveInfinity;
+            var bestContainsAim = false;
             foreach (var (classId, box) in detections)
             {
-                if (classId < 0 || classId >= m_labels.Length)
+                if ((uint)classId >= (uint)m_labels.Length)
                 {
                     continue;
                 }
@@ -89,7 +114,7 @@ namespace WarhammerAssistant
                     {
                         continue;
                     }
-                    label = "intercessor";
+                    label = DemoLabel;
                 }
 
                 if (!m_units.TryGetValue(label, out var unit))
@@ -98,119 +123,169 @@ namespace WarhammerAssistant
                 }
 
                 var bounds = Rect.MinMaxRect(
-                    box.x / inputSize.x, box.y / inputSize.y,
-                    box.z / inputSize.x, box.w / inputSize.y);
-                var distance = (bounds.center - new Vector2(0.5f, 0.5f)).sqrMagnitude;
-                if ((!bounds.Contains(new Vector2(0.5f, 0.5f)) && distance > CenterTolerance * CenterTolerance)
-                    || distance >= closest)
+                    box.x / cameraSize.x, box.y / cameraSize.y,
+                    box.z / cameraSize.x, box.w / cameraSize.y);
+                var captureDistance = (bounds.center - captureAim).sqrMagnitude;
+                var liveDistance = (bounds.center - currentAim).sqrMagnitude;
+                var containsAim = bounds.Contains(currentAim);
+                if ((bestContainsAim && !containsAim) || (bestContainsAim == containsAim && captureDistance >= closest)
+                    || !NearAim(bounds, captureAim, captureDistance)
+                    || !NearAim(bounds, currentAim, liveDistance))
                 {
                     continue;
                 }
 
                 selected = unit;
-                closest = distance;
+                selectedBounds = bounds;
+                closest = captureDistance;
+                bestContainsAim = containsAim;
             }
-
-            if (selected == null || !EnsureCard())
-            {
-                return;
-            }
-
-            if (selected != m_currentUnit)
-            {
-                m_title.text = selected.name;
-                m_faction.text = m_bottleDemo ? $"BOTTLE DEMO  /  {selected.faction}" : selected.faction;
-                m_description.text = selected.description;
-                m_currentUnit = selected;
-            }
-
-            m_hideAt = Time.unscaledTime + CardHoldSeconds;
-            m_card.SetActive(true);
+            return selected != null;
         }
+
+        private static bool NearAim(Rect bounds, Vector2 aim, float squaredDistance) =>
+            bounds.Contains(aim) || squaredDistance <= CenterTolerance * CenterTolerance;
 
         private void Update()
         {
-            if (m_card != null && m_card.activeSelf && Time.unscaledTime >= m_hideAt)
+            if (m_canvas == null || !m_canvas.gameObject.activeSelf)
             {
-                m_card.SetActive(false);
+                return;
             }
+            if (Time.unscaledTime >= m_hideAt)
+            {
+                m_canvas.gameObject.SetActive(false);
+                return;
+            }
+
+            var scroll = OVRInput.Get(OVRInput.Axis2D.SecondaryThumbstick).y;
+            m_panel.Scroll(scroll, Time.unscaledDeltaTime);
         }
 
         private void OnDisable()
         {
-            if (m_card != null)
+            if (m_canvas != null)
             {
-                m_card.SetActive(false);
+                m_canvas.gameObject.SetActive(false);
             }
         }
 
         private void OnDestroy()
         {
-            if (m_card != null)
+            if (m_canvas != null)
             {
-                Destroy(m_card);
+                Destroy(m_canvas.gameObject);
             }
         }
 
-        private bool EnsureCard()
+        private Transform FindHead()
         {
-            if (m_card != null)
+            if (m_rig == null)
+            {
+                m_rig = FindFirstObjectByType<OVRCameraRig>();
+            }
+            return m_rig == null ? null : m_rig.centerEyeAnchor;
+        }
+
+        private bool EnsureCanvas()
+        {
+            if (m_canvas != null)
             {
                 return true;
             }
 
-            var rig = FindFirstObjectByType<OVRCameraRig>();
-            if (rig == null || rig.centerEyeAnchor == null)
+            var head = FindHead();
+            if (head == null)
             {
                 return false;
             }
 
-            m_card = new GameObject("Warhammer Unit Card", typeof(RectTransform), typeof(Canvas));
-            var canvas = m_card.GetComponent<Canvas>();
+            var canvas = new GameObject("Warhammer AR HUD", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            var panel = (RectTransform)canvas.transform;
-            panel.SetParent(rig.centerEyeAnchor, false);
-            panel.localPosition = new Vector3(0.31f, -0.19f, 1.2f);
-            panel.localScale = Vector3.one * 0.001f;
-            panel.sizeDelta = new Vector2(410f, 155f);
+            m_canvas = (RectTransform)canvas.transform;
+            m_canvas.SetParent(head, false);
+            m_canvas.localPosition = new Vector3(0, 0, 1.25f);
+            m_canvas.localScale = Vector3.one * 0.001f;
+            m_canvas.sizeDelta = new Vector2(1600, 900);
 
-            var background = new GameObject("Background", typeof(RectTransform), typeof(Image));
-            var image = background.GetComponent<Image>();
-            image.color = new Color(0.05f, 0.07f, 0.08f, 0.94f);
-            image.raycastTarget = false;
-            image.rectTransform.SetParent(panel, false);
-            image.rectTransform.anchorMin = Vector2.zero;
-            image.rectTransform.anchorMax = Vector2.one;
-            image.rectTransform.offsetMin = Vector2.zero;
-            image.rectTransform.offsetMax = Vector2.zero;
-
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            m_faction = AddText(panel, font, "Faction", 18, new Color(0.92f, 0.77f, 0.44f), 13f, 27f);
-            m_title = AddText(panel, font, "Unit", 31, Color.white, 42f, 41f);
-            m_description = AddText(panel, font, "Description", 20, Color.white, 88f, 56f);
-            m_title.fontStyle = FontStyle.Bold;
+            var accent = new Color(0.34f, 0.94f, 0.91f, 0.9f);
+            m_connector = DatasheetPanel.SurfaceRect(m_canvas, "Target connector", accent, 0, 0, 1, 2);
+            m_connector.anchorMin = m_connector.anchorMax = new Vector2(0.5f, 0.5f);
+            m_connector.pivot = new Vector2(0, 0.5f);
+            for (var index = 0; index < m_brackets.Length; index++)
+            {
+                var bracket = DatasheetPanel.SurfaceRect(m_canvas, "Target corner", accent, 0, 0, 1, 1);
+                bracket.anchorMin = bracket.anchorMax = bracket.pivot = new Vector2(0.5f, 0.5f);
+                m_brackets[index] = bracket;
+            }
+            var font = m_font != null ? m_font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            m_panel = new DatasheetPanel(m_canvas, font);
+            m_panel.SetVisible(true);
             return true;
         }
 
-        private static Text AddText(RectTransform panel, Font font, string name, int size, Color color,
-            float top, float height)
+        private void DrawMarker(Rect bounds, PassthroughCameraAccess camera, Pose cameraPose)
         {
-            var element = new GameObject(name, typeof(RectTransform), typeof(Text));
-            var text = element.GetComponent<Text>();
-            text.font = font;
-            text.fontSize = size;
-            text.color = color;
-            text.raycastTarget = false;
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = Mathf.Max(12, size - 8);
-            text.resizeTextMaxSize = size;
-            var rect = text.rectTransform;
-            rect.SetParent(panel, false);
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(18f, -top - height);
-            rect.offsetMax = new Vector2(-18f, -top);
-            return text;
+            var head = FindHead();
+            var targetPlane = new Plane(head.forward, head.position + head.forward * EstimatedTargetDistance);
+            var topLeft = Project(new Vector2(bounds.xMin, 1f - bounds.yMin));
+            var bottomRight = Project(new Vector2(bounds.xMax, 1f - bounds.yMax));
+            if (!topLeft.HasValue || !bottomRight.HasValue)
+            {
+                SetMarkerVisible(false);
+                return;
+            }
+
+            var left = Mathf.Min(topLeft.Value.x, bottomRight.Value.x);
+            var right = Mathf.Max(topLeft.Value.x, bottomRight.Value.x);
+            var bottom = Mathf.Min(topLeft.Value.y, bottomRight.Value.y);
+            var top = Mathf.Max(topLeft.Value.y, bottomRight.Value.y);
+            var length = Mathf.Clamp(Mathf.Min(right - left, top - bottom) * 0.22f, 8, 26);
+            SetCorner(0, left, top, 1, -1);
+            SetCorner(2, right, top, -1, -1);
+            SetCorner(4, left, bottom, 1, 1);
+            SetCorner(6, right, bottom, -1, 1);
+            SetMarkerVisible(true);
+
+            var connectorStart = new Vector2(right + 4, bottom + length);
+            var connectorDelta = new Vector2(70, 0) - connectorStart;
+            m_connector.gameObject.SetActive(connectorDelta.x > 14);
+            m_connector.anchoredPosition = connectorStart;
+            m_connector.sizeDelta = new Vector2(connectorDelta.magnitude, 2);
+            m_connector.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(connectorDelta.y, connectorDelta.x) * Mathf.Rad2Deg);
+
+            Vector2? Project(Vector2 viewport)
+            {
+                var ray = camera.ViewportPointToRay(viewport, cameraPose);
+                if (!targetPlane.Raycast(ray, out var distance))
+                {
+                    return null;
+                }
+                var target = head.InverseTransformPoint(ray.GetPoint(distance));
+                var canvasDepth = m_canvas.localPosition.z;
+                return new Vector2(target.x, target.y) * (canvasDepth / (target.z * m_canvas.localScale.x));
+            }
+
+            void SetCorner(int index, float x, float y, int horizontal, int vertical)
+            {
+                m_brackets[index].anchoredPosition = new Vector2(x + horizontal * length / 2, y);
+                m_brackets[index].sizeDelta = new Vector2(length, 3);
+                m_brackets[index + 1].anchoredPosition = new Vector2(x, y + vertical * length / 2);
+                m_brackets[index + 1].sizeDelta = new Vector2(3, length);
+            }
+        }
+
+        private void SetMarkerVisible(bool visible)
+        {
+            if (m_connector == null)
+            {
+                return;
+            }
+            m_connector.gameObject.SetActive(visible);
+            foreach (var bracket in m_brackets)
+            {
+                bracket.gameObject.SetActive(visible);
+            }
         }
     }
 }

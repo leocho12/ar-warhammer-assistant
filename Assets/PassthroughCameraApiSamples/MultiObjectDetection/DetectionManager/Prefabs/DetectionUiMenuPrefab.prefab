@@ -173,8 +173,7 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: '-----------------------------------------------------------
 
-    <b>PCA
-    MULTI-OBJECT SAMPLE</b>
+    <b>WARHAMMER ASSISTANT</b>
 
     -----------------------------------------------------------'
 --- !u!1 &538354901286188544
@@ -628,8 +627,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: This sample shows Yolo model running locally using Unity Inference Engine
-    and Passthrough Camera API.
+  m_Text: Look at a unit to see its datasheet. Use the right stick to scroll longer cards.
 --- !u!114 &3515746225673257104
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -778,8 +776,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: This sample requires SPATIAL DATA and CAMERA permissions. Please launch
-    the app again or reinstall it to allow both permissions.
+  m_Text: Allow headset camera access to scan the tabletop.
 --- !u!114 &2636611983931668576
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1106,8 +1103,7 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: '-----------------------------------------------------------
 
-    <b>PCA
-    MULTI-OBJECT SAMPLE</b>
+    <b>WARHAMMER ASSISTANT</b>
 
     -----------------------------------------------------------'
 --- !u!1 &7539337319951356723
@@ -1345,8 +1341,7 @@ MonoBehaviour:
     m_LineSpacing: 1
   m_Text: '-----------------------------------------------------------
 
-    <b>PCA
-    MULTI-OBJECT SAMPLE</b>
+    <b>WARHAMMER ASSISTANT</b>
 
     -----------------------------------------------------------'
 --- !u!1 &8722207748505512710
