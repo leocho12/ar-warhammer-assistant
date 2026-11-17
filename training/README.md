@@ -37,6 +37,27 @@ PC 미리보기와 Unity는 비율 유지 리사이즈와 패딩을 사용합니
 
 실제 미니어처 사진을 준비하기 전에는 인식 정확도를 평가할 수 없습니다. 여러 방향, 거리, 도색, 조명과 가려짐을 포함해 사진을 모으고, 검증 사진은 별도의 촬영에서 확보합니다. 처음에는 구분할 유닛 몇 종류로 전체 흐름을 확인할 수 있습니다.
 
+## TTS 3D 모델로 학습 이미지 만들기
+
+`data/tts-models/saved-factions/`의 조립 목록과 에셋에서 Unity 카탈로그의 라벨이 연결된 모델을 렌더링합니다. 기본값은 모델별 6개 시점과 2~5개 모델을 배치한 여러 객체 장면입니다. 카메라 높이와 방향, 조명, 테이블 표면을 바꾸고, 각 모델이 실제로 보이는 픽셀의 범위를 YOLO 바운딩 박스로 저장합니다. Unity 번들에서는 정적인 프리팹 메시와 재질을 사용합니다.
+
+PowerShell에서 `training` 폴더를 열고 실행합니다. Windows의 OpenGL 3.3 이상을 지원하는 그래픽 드라이버가 필요합니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-render.txt
+.\.venv\Scripts\python.exe -u render_dataset.py
+.\.venv\Scripts\python.exe verify_render_dataset.py
+```
+
+`data/tts-synthetic/`의 `dataset.yaml`을 Ultralytics 학습에 바로 사용할 수 있습니다. `labels.txt`는 Unity 라벨의 클래스 순서이고, `preview.jpg`에서 박스 예시를 볼 수 있습니다. `summary.json`에는 학습·검증 수량과 클래스별 박스 수가 있으며, 읽을 수 없는 모델은 `skipped-models.json`에 기록합니다. 같은 메시·기본 번들 조합을 사용하는 도색 변형은 같은 분할에 둡니다. 소스 구성이 하나뿐인 클래스는 주로 학습에 포함되며, 실제 미니어처에서의 탐지 성능은 독립적으로 촬영한 사진으로 평가합니다.
+
+중단 후 같은 옵션으로 다시 실행하면 완료된 묶음부터 이어서 진행합니다. 일부 팩션만 만들려면 `--faction t-au-empire --output data/tts-synthetic-tau`처럼 지정합니다.
+
+```powershell
+$data = (Resolve-Path '.\data\tts-synthetic\dataset.yaml').Path
+.\.venv\Scripts\yolo.exe detect train model=yolov8n.pt "data=$data" imgsz=640 batch=8 device=0 workers=0 project=runs name=tts-synthetic
+```
+
 모델 학습은 Ultralytics 패키지와 해당 모델 가중치를 사용합니다. 프로젝트의 기존 모델과 별도의 라이선스가 적용되므로 배포 시 사용하는 버전의 조건을 확인합니다. [Ultralytics 라이선스](https://github.com/ultralytics/ultralytics/blob/main/LICENSE)
 
 개발 확인은 이 폴더에서 `.venv\Scripts\python.exe -m pip install pytest` 후 `.venv\Scripts\python.exe -m pytest tests -q`로 실행할 수 있습니다. GUI 테스트에는 사용 가능한 데스크톱 세션이 필요합니다.
